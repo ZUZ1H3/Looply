@@ -42,23 +42,37 @@ class ViewController: UIViewController, SPTSessionManagerDelegate {
     }
     override func viewDidLoad() {
         super.viewDidLoad()
- }
-
+        
+        // 저장된 토큰이 있으면 바로 메인으로
+        if let token = UserDefaults.standard.string(forKey: "spotifyAccessToken") {
+            print("🔒 기존 토큰 있음: \(token)")
+            
+            DispatchQueue.main.async {
+                let storyboard = UIStoryboard(name: "Main", bundle: nil)
+                if let mainVC = storyboard.instantiateViewController(withIdentifier: "MainViewController") as? MainViewController {
+                    mainVC.modalPresentationStyle = .fullScreen
+                    self.present(mainVC, animated: true, completion: nil)
+                }
+            }
+        }
+    }
 
 
     func sessionManager(manager: SPTSessionManager, didInitiate session: SPTSession) {
         print("✅ Logged in! Token:", session.accessToken)
-
+        
+        // 저장
+        UserDefaults.standard.set(session.accessToken, forKey: "spotifyAccessToken")
+        
         DispatchQueue.main.async {
             let storyboard = UIStoryboard(name: "Main", bundle: nil)
             if let mainVC = storyboard.instantiateViewController(withIdentifier: "MainViewController") as? MainViewController {
                 mainVC.modalPresentationStyle = .fullScreen
                 self.present(mainVC, animated: true, completion: nil)
-            } else {
-                print("❌ MainViewController 인스턴스 생성 실패")
             }
         }
     }
+
 
 
     func sessionManager(manager: SPTSessionManager, didFailWith error: Error) {
