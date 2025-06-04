@@ -1,28 +1,35 @@
 import UIKit
 
-class MainViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
+class MainViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
 
     // 화면의 제목 텍스트
     @IBOutlet weak var titleLabel: UILabel!
-    @IBOutlet weak var tracksTableView: UITableView!
+    @IBOutlet weak var albumsCollectionView: UICollectionView!
 
     var likedTracks: [AudioTrack] = []
+    var likedAlbums: [Album] = []
 
     // 화면이 처음 나타날 때 실행
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        // 처음에는 로딩 메시지 표시
         titleLabel.text = "🎵 로딩 중..."
-        // TableView 설정 추가
-        tracksTableView.delegate = self
-        tracksTableView.dataSource = self
-        tracksTableView.register(UITableViewCell.self, forCellReuseIdentifier: "TrackCell")
+        albumsCollectionView.delegate = self
+        albumsCollectionView.dataSource = self
         
-        // 사용자 이름 가져와서 인사말 만들기
+        // 🎨 기본 셀 등록
+        albumsCollectionView.register(UICollectionViewCell.self, forCellWithReuseIdentifier: "AlbumCell")
+        
+        // 🎨 카드 레이아웃 설정
+        if let layout = albumsCollectionView.collectionViewLayout as? UICollectionViewFlowLayout {
+            layout.scrollDirection = .horizontal
+            layout.minimumLineSpacing = 16
+            layout.minimumInteritemSpacing = 16
+            layout.sectionInset = UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
+        }
+        
         fetchUserProfile()
-        fetchLikedTracks() // 이 줄 추가!
-
+        fetchLikedTracksAndExtractAlbums()
     }
     
     // 사용자 정보 가져오기
@@ -30,12 +37,10 @@ class MainViewController: UIViewController, UITableViewDelegate, UITableViewData
         SpotifyAPIManager.shared.getUserProfile { [weak self] result in
             switch result {
             case .success(let profile):
-                // 성공하면 인사말 표시
                 DispatchQueue.main.async {
                     self?.titleLabel.text = "안녕하세요, \(profile.display_name)님!"
                 }
             case .failure(let error):
-                // 실패하면 기본 메시지 표시
                 print("❌ 프로필 가져오기 실패: \(error)")
                 DispatchQueue.main.async {
                     self?.titleLabel.text = "🎵 나만의 음악"
@@ -44,42 +49,116 @@ class MainViewController: UIViewController, UITableViewDelegate, UITableViewData
         }
     }
     
-    /// 좋아요한 트랙 가져오기
-    private func fetchLikedTracks() {
+    /// 좋아요한 곡에서 앨범들 추출
+    private func fetchLikedTracksAndExtractAlbums() {
         SpotifyAPIManager.shared.getLikedTracks { [weak self] result in
             switch result {
             case .success(let tracks):
-                self?.likedTracks = Array(tracks.prefix(10))
-                DispatchQueue.main.async {
-                    self?.titleLabel.text = "내가 좋아요한 음악 ❤️"
-                    self?.tracksTableView.reloadData() // 주석 해제!
+                // 🎵 곡들에서 앨범 정보 추출
+                var albumsDict: [String: Album] = [:]
+                
+                for track in tracks {
+                    let albumId = track.album.id
+                    if albumsDict[albumId] == nil {
+                        let album = Album(
+                            id: track.album.id,
+                            name: track.album.name,
+                            artists: [Album.Artist(name: track.artist.name)],
+                            images: track.album.images.map { albumImage in
+                                Album.AlbumImage(url: albumImage.url, height: albumImage.height, width: albumImage.width)
+                            },
+                            external_urls: track.album.external_urls,
+                            release_date: nil
+                        )
+                        albumsDict[albumId] = album
+                    }
                 }
-                print("✅ 좋아요 트랙 \(tracks.count)개 로드 완료")
+                
+                let uniqueAlbums = Array(albumsDict.values)
+                self?.likedAlbums = Array(uniqueAlbums.prefix(10))
+                
+                DispatchQueue.main.async {
+                    self?.titleLabel.text = "지혜님이 좋아하는 앨범들 📀"
+                    self?.albumsCollectionView.reloadData()  // ✅ CollectionView로 변경
+                }
+                
+                print("✅ 앨범 \(uniqueAlbums.count)개 추출 완료!")
+                
             case .failure(let error):
-                print("❌ 좋아요 트랙 가져오기 실패: \(error.localizedDescription)")
+                print("❌ 트랙 가져오기 실패: \(error)")
             }
         }
     }
     
-    // MARK: - TableView DataSource
-        func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-            return likedTracks.count
+    // MARK: - CollectionView DataSource
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return likedAlbums.count
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let album = likedAlbums[indexPath.item]
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "AlbumCell", for: indexPath)
+        
+        // 🎨 셀 기본 스타일
+        cell.backgroundColor = .white
+        cell.layer.cornerRadius = 12
+        cell.layer.shadowColor = UIColor.black.cgColor
+        cell.layer.shadowOffset = CGSize(width: 0, height: 2)
+        cell.layer.shadowOpacity = 0.1
+        cell.layer.shadowRadius = 4
+        
+        // 기존 뷰들 제거
+        cell.subviews.forEach { $0.removeFromSuperview() }
+        
+        // 📀 앨범 이미지 뷰 생성
+        let imageView = UIImageView(frame: CGRect(x: 8, y: 8, width: 134, height: 134))
+        imageView.backgroundColor = .systemGray5 // 로딩 중 배경
+        imageView.layer.cornerRadius = 8
+        imageView.contentMode = .scaleAspectFill
+        imageView.clipsToBounds = true
+        
+        // 🌐 실제 앨범 커버 이미지 로드
+        if let imageUrl = album.imageUrl, let url = URL(string: imageUrl) {
+            loadImage(from: url, into: imageView)
         }
         
-        func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-            let track = likedTracks[indexPath.row]
-            let cell = tableView.dequeueReusableCell(withIdentifier: "TrackCell", for: indexPath)
-            cell.textLabel?.text = "\(track.name) - \(track.artist.name)"
-            return cell
-        }
+        // 📝 앨범명 라벨
+        let titleLabel = UILabel(frame: CGRect(x: 8, y: 150, width: 134, height: 30))
+        titleLabel.text = album.name
+        titleLabel.font = UIFont.boldSystemFont(ofSize: 12)
+        titleLabel.numberOfLines = 2
+        titleLabel.textAlignment = .center
         
-        // MARK: - TableView Delegate
-        func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-            tableView.deselectRow(at: indexPath, animated: true)
-            
-            let track = likedTracks[indexPath.row]
-            if let url = URL(string: track.external_urls["spotify"] ?? "") {
-                UIApplication.shared.open(url)
+        // 👤 아티스트명 라벨
+        let artistLabel = UILabel(frame: CGRect(x: 8, y: 175, width: 134, height: 20))
+        artistLabel.text = album.artistName
+        artistLabel.font = UIFont.systemFont(ofSize: 10)
+        artistLabel.textColor = .gray
+        artistLabel.textAlignment = .center
+        
+        cell.addSubview(imageView)
+        cell.addSubview(titleLabel)
+        cell.addSubview(artistLabel)
+        
+        return cell
+    }
+
+    // 🌐 이미지 로드 함수 추가
+    private func loadImage(from url: URL, into imageView: UIImageView) {
+        URLSession.shared.dataTask(with: url) { data, response, error in
+            guard let data = data, error == nil else {
+                print("❌ 이미지 로드 실패: \(error?.localizedDescription ?? "Unknown error")")
+                return
             }
-        }
+            
+            DispatchQueue.main.async {
+                imageView.image = UIImage(data: data)
+            }
+        }.resume()
+    }
+    
+    // MARK: - CollectionView Layout
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        return CGSize(width: 150, height: 200)
+    }
 }
