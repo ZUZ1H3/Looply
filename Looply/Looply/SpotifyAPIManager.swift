@@ -220,4 +220,57 @@ class SpotifyAPIManager {
             }
         }.resume()
     }
+    
+    // MARK: - Currently Playing API
+    func getCurrentlyPlayingTrack(completion: @escaping (Result<CurrentlyPlayingResponse?, APIError>) -> Void) {
+        guard let token = UserDefaults.standard.string(forKey: "spotifyAccessToken") else {
+            completion(.failure(.noToken))
+            return
+        }
+        
+        guard let url = URL(string: Constants.baseAPIURL + "/me/player/currently-playing") else {
+            completion(.failure(.invalidURL))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpMethod = "GET"
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let httpResponse = response as? HTTPURLResponse {
+                print("🛎 현재 재생 HTTP 상태 코드: \(httpResponse.statusCode)")
+                
+                if httpResponse.statusCode == 401 {
+                    UserDefaults.standard.removeObject(forKey: "spotifyAccessToken")
+                    completion(.failure(.tokenExpired))
+                    return
+                }
+                
+                // 재생 중인 것이 없으면 204 응답
+                if httpResponse.statusCode == 204 {
+                    completion(.success(nil))
+                    return
+                }
+            }
+            
+            if let error = error {
+                completion(.failure(.apiError(0, error.localizedDescription)))
+                return
+            }
+            
+            guard let data = data else {
+                completion(.failure(.noData))
+                return
+            }
+            
+            do {
+                let playingResponse = try JSONDecoder().decode(CurrentlyPlayingResponse.self, from: data)
+                completion(.success(playingResponse))
+            } catch {
+                print("🔍 현재 재생 JSON 파싱 에러: \(error)")
+                completion(.failure(.apiError(-1, error.localizedDescription)))
+            }
+        }.resume()
+    }
 }
