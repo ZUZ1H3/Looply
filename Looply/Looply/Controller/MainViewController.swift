@@ -58,16 +58,19 @@ class MainViewController: UIViewController, UICollectionViewDelegate, UICollecti
                 var albumsDict: [String: Album] = [:]
                 
                 for track in tracks {
-                    let albumId = track.album.id
+                    // album이 옵셔널이므로 안전하게 접근
+                    guard let trackAlbum = track.album else { continue }
+                    
+                    let albumId = trackAlbum.id
                     if albumsDict[albumId] == nil {
                         let album = Album(
-                            id: track.album.id,
-                            name: track.album.name,
+                            id: trackAlbum.id,
+                            name: trackAlbum.name,
                             artists: [Album.Artist(name: track.artist.name)],
-                            images: track.album.images.map { albumImage in
+                            images: trackAlbum.images.map { albumImage in
                                 Album.AlbumImage(url: albumImage.url, height: albumImage.height, width: albumImage.width)
                             },
-                            external_urls: track.album.external_urls,
+                            external_urls: trackAlbum.external_urls,
                             release_date: nil
                         )
                         albumsDict[albumId] = album
@@ -79,7 +82,7 @@ class MainViewController: UIViewController, UICollectionViewDelegate, UICollecti
                 
                 DispatchQueue.main.async {
                     self?.titleLabel.text = "지혜님이 좋아하는 앨범들 📀"
-                    self?.albumsCollectionView.reloadData()  // ✅ CollectionView로 변경
+                    self?.albumsCollectionView.reloadData()
                 }
                 
                 print("✅ 앨범 \(uniqueAlbums.count)개 추출 완료!")
@@ -89,10 +92,37 @@ class MainViewController: UIViewController, UICollectionViewDelegate, UICollecti
             }
         }
     }
-    
     // MARK: - CollectionView DataSource
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         return likedAlbums.count
+    }
+    
+    // MARK: - CollectionView Delegate
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        print("🎵 앨범 클릭됨: \(indexPath.item)")
+        
+        let selectedAlbum = likedAlbums[indexPath.item]
+        print("📀 선택된 앨범: \(selectedAlbum.name)")
+        
+        let storyboard = UIStoryboard(name: "Main", bundle: nil)
+        
+        if let detailVC = storyboard.instantiateViewController(withIdentifier: "AlbumDetailViewController") as? AlbumDetailViewController {
+            print("✅ AlbumDetailViewController 생성 성공")
+            detailVC.album = selectedAlbum
+            
+            if let navController = navigationController {
+                print("✅ NavigationController 존재함")
+                navController.pushViewController(detailVC, animated: true)
+                print("✅ pushViewController 호출됨")
+            } else {
+                print("❌ NavigationController가 nil임!")
+                // 대안: present로 화면 전환
+                detailVC.modalPresentationStyle = .fullScreen
+                present(detailVC, animated: true)
+            }
+        } else {
+            print("❌ AlbumDetailViewController를 찾을 수 없어요!")
+        }
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {

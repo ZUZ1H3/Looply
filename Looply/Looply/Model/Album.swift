@@ -43,3 +43,8 @@ struct LikedAlbumsResponse: Codable {
 struct LikedAlbumItem: Codable {
     let album: Album
 }
+
+struct AlbumTracksResponse: Codable {
+    let items: [AudioTrack]
+}
+

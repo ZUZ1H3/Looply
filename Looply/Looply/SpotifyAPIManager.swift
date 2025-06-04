@@ -176,4 +176,54 @@ class SpotifyAPIManager {
             }
         }.resume()
     }
+    // MARK: - Album Tracks API
+    func getAlbumTracks(albumId: String, completion: @escaping (Result<[AudioTrack], APIError>) -> Void) {
+        guard let token = UserDefaults.standard.string(forKey: "spotifyAccessToken") else {
+            completion(.failure(.noToken))
+            return
+        }
+        
+        guard let url = URL(string: Constants.baseAPIURL + "/albums/\(albumId)/tracks?limit=50") else {
+            completion(.failure(.invalidURL))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpMethod = "GET"
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode == 401 {
+                    UserDefaults.standard.removeObject(forKey: "spotifyAccessToken")
+                    completion(.failure(.tokenExpired))
+                    return
+                }
+            }
+            
+            if let error = error {
+                completion(.failure(.apiError(0, error.localizedDescription)))
+                return
+            }
+            
+            guard let data = data else {
+                completion(.failure(.noData))
+                return
+            }
+            
+            // 🔍 API 응답 로그 추가
+            if let jsonString = String(data: data, encoding: .utf8) {
+                print("🔍 Album Tracks API 응답:")
+                print(jsonString)
+            }
+            
+            do {
+                let result = try JSONDecoder().decode(AlbumTracksResponse.self, from: data)
+                completion(.success(result.items))
+            } catch {
+                print("🔍 JSON 파싱 에러: \(error)")
+                completion(.failure(.apiError(-1, error.localizedDescription)))
+            }
+        }.resume()
+    }
 }
