@@ -55,13 +55,15 @@ class ViewController: UIViewController, SPTSessionManagerDelegate {
         }
     }
     
+    // ViewController.swift (로그인 화면)에서
+    // ViewController.swift (로그인 화면)에서
     func goToMainScreen() {
         DispatchQueue.main.async {
             let storyboard = UIStoryboard(name: "Main", bundle: nil)
-            if let mainVC = storyboard.instantiateViewController(withIdentifier: "MainViewController") as? MainViewController {
-                mainVC.modalPresentationStyle = .fullScreen
-                self.present(mainVC, animated: true, completion: nil)
-            }
+            // TabBarController의 Storyboard ID가 설정되어 있어야 함
+            let tabBarController = storyboard.instantiateViewController(withIdentifier: "TabBarController")
+            tabBarController.modalPresentationStyle = .fullScreen
+            self.present(tabBarController, animated: true)
         }
     }
 

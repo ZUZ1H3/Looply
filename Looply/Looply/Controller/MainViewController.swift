@@ -6,8 +6,15 @@ class MainViewController: UIViewController, UICollectionViewDelegate, UICollecti
     @IBOutlet weak var titleLabel: UILabel!
     @IBOutlet weak var albumsCollectionView: UICollectionView!
 
-    var likedTracks: [AudioTrack] = []
-    var likedAlbums: [Album] = []
+    // 새로 추가할 UI 요소들
+       var headerView: UIView!
+       var greetingLabel: UILabel!
+       var profileImageView: UIImageView!
+       
+       var likedTracks: [AudioTrack] = []
+       var likedAlbums: [Album] = []
+       var userProfile: UserProfile? // 사용자 프로필 저장
+
 
     // 화면이 처음 나타날 때 실행
     override func viewDidLoad() {
@@ -27,28 +34,98 @@ class MainViewController: UIViewController, UICollectionViewDelegate, UICollecti
             layout.minimumInteritemSpacing = 16
             layout.sectionInset = UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
         }
-        
+        setupHeaderUI() // 헤더 UI 설정
+
         fetchUserProfile()
         fetchLikedTracksAndExtractAlbums()
     }
     
     // 사용자 정보 가져오기
+    // 사용자 정보 가져오기 (수정됨)
     private func fetchUserProfile() {
         SpotifyAPIManager.shared.getUserProfile { [weak self] result in
             switch result {
             case .success(let profile):
+                self?.userProfile = profile
                 DispatchQueue.main.async {
-                    self?.titleLabel.text = "안녕하세요, \(profile.display_name)님!"
+                    // 인사말 업데이트
+                    self?.greetingLabel.text = "안녕하세요, \(profile.display_name)님!"
+                    
+                    // 프로필 이미지 로드 (있다면)
+                    if let imageUrl = profile.images?.first?.url,
+                       let url = URL(string: imageUrl) {
+                        self?.loadProfileImage(from: url)
+                    }
                 }
             case .failure(let error):
                 print("❌ 프로필 가져오기 실패: \(error)")
                 DispatchQueue.main.async {
-                    self?.titleLabel.text = "🎵 나만의 음악"
+                    self?.greetingLabel.text = "🎵 나만의 음악"
                 }
             }
         }
     }
+    // 프로필 이미지 로드 함수
+    private func loadProfileImage(from url: URL) {
+        URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
+            guard let data = data, error == nil else {
+                print("❌ 프로필 이미지 로드 실패: \(error?.localizedDescription ?? "Unknown error")")
+                return
+            }
+            
+            DispatchQueue.main.async {
+                self?.profileImageView.image = UIImage(data: data)
+            }
+        }.resume()
+    }
     
+    // 새로운 헤더 UI 설정 함수
+    private func setupHeaderUI() {
+        // 헤더 컨테이너 뷰 생성
+        headerView = UIView()
+        headerView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(headerView)
+        
+        // 인사말 라벨 생성
+        greetingLabel = UILabel()
+        greetingLabel.text = "🎵 로딩 중..."
+        greetingLabel.font = UIFont.boldSystemFont(ofSize: 24)
+        greetingLabel.textColor = .black
+        greetingLabel.translatesAutoresizingMaskIntoConstraints = false
+        headerView.addSubview(greetingLabel)
+        
+        // 프로필 이미지 뷰 생성
+        profileImageView = UIImageView()
+        profileImageView.backgroundColor = .lightGray
+        profileImageView.layer.cornerRadius = 25 // 원형으로 만들기
+        profileImageView.clipsToBounds = true
+        profileImageView.contentMode = .scaleAspectFill
+        profileImageView.translatesAutoresizingMaskIntoConstraints = false
+        headerView.addSubview(profileImageView)
+        
+        // Auto Layout 설정
+        NSLayoutConstraint.activate([
+            // 헤더 뷰 제약조건
+            headerView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
+            headerView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            headerView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            headerView.heightAnchor.constraint(equalToConstant: 60),
+            
+            // 인사말 라벨 제약조건
+            greetingLabel.leadingAnchor.constraint(equalTo: headerView.leadingAnchor),
+            greetingLabel.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
+            greetingLabel.trailingAnchor.constraint(lessThanOrEqualTo: profileImageView.leadingAnchor, constant: -10),
+            
+            // 프로필 이미지 제약조건
+            profileImageView.trailingAnchor.constraint(equalTo: headerView.trailingAnchor),
+            profileImageView.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
+            profileImageView.widthAnchor.constraint(equalToConstant: 50),
+            profileImageView.heightAnchor.constraint(equalToConstant: 50)
+        ])
+        
+        // 기존 titleLabel 숨기기 (새로운 greetingLabel로 대체)
+        titleLabel.isHidden = true
+    }
     /// 좋아요한 곡에서 앨범들 추출
     private func fetchLikedTracksAndExtractAlbums() {
         SpotifyAPIManager.shared.getLikedTracks { [weak self] result in
