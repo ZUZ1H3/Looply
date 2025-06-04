@@ -273,4 +273,67 @@ class SpotifyAPIManager {
             }
         }.resume()
     }
+    
+    // MARK: - Playback Control APIs
+    func pausePlayback(completion: @escaping (Result<Void, APIError>) -> Void) {
+        guard let token = UserDefaults.standard.string(forKey: "spotifyAccessToken") else {
+            completion(.failure(.noToken))
+            return
+        }
+        
+        guard let url = URL(string: Constants.baseAPIURL + "/me/player/pause") else {
+            completion(.failure(.invalidURL))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpMethod = "PUT"
+        
+        URLSession.shared.dataTask(with: request) { _, response, error in
+            if let error = error {
+                completion(.failure(.apiError(0, error.localizedDescription)))
+                return
+            }
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode == 204 {
+                    completion(.success(()))
+                } else {
+                    completion(.failure(.apiError(httpResponse.statusCode, "재생 일시정지 실패")))
+                }
+            }
+        }.resume()
+    }
+
+    func resumePlayback(completion: @escaping (Result<Void, APIError>) -> Void) {
+        guard let token = UserDefaults.standard.string(forKey: "spotifyAccessToken") else {
+            completion(.failure(.noToken))
+            return
+        }
+        
+        guard let url = URL(string: Constants.baseAPIURL + "/me/player/play") else {
+            completion(.failure(.invalidURL))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpMethod = "PUT"
+        
+        URLSession.shared.dataTask(with: request) { _, response, error in
+            if let error = error {
+                completion(.failure(.apiError(0, error.localizedDescription)))
+                return
+            }
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode == 204 {
+                    completion(.success(()))
+                } else {
+                    completion(.failure(.apiError(httpResponse.statusCode, "재생 재개 실패")))
+                }
+            }
+        }.resume()
+    }
 }
