@@ -211,12 +211,6 @@ class SpotifyAPIManager {
                 return
             }
             
-            // 🔍 API 응답 로그 추가
-            if let jsonString = String(data: data, encoding: .utf8) {
-                print("🔍 Album Tracks API 응답:")
-                print(jsonString)
-            }
-            
             do {
                 let result = try JSONDecoder().decode(AlbumTracksResponse.self, from: data)
                 completion(.success(result.items))

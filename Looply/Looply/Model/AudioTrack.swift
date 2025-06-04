@@ -5,7 +5,8 @@ struct AudioTrack: Codable {
     let artist: Artist
     let album: Album?  // 옵셔널로 변경
     let external_urls: [String: String]
-    
+    let duration_ms: Int? // 추가
+
     struct Artist: Codable {
         let name: String
     }
@@ -32,6 +33,7 @@ struct AudioTrack: Codable {
         case artist = "artists"
         case album
         case external_urls
+        case duration_ms = "duration_ms" // 추가
     }
     
     init(from decoder: Decoder) throws {
@@ -39,10 +41,9 @@ struct AudioTrack: Codable {
         name = try container.decode(String.self, forKey: .name)
         let artists = try container.decode([Artist].self, forKey: .artist)
         artist = artists.first ?? Artist(name: "Unknown")
-        
-        // album을 옵셔널로 디코딩
         album = try container.decodeIfPresent(Album.self, forKey: .album)
         external_urls = try container.decode([String: String].self, forKey: .external_urls)
+        duration_ms = try container.decodeIfPresent(Int.self, forKey: .duration_ms) // 추가
     }
 }
 
