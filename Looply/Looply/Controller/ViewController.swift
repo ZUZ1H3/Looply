@@ -3,6 +3,7 @@ import SpotifyiOS
 
 class ViewController: UIViewController, SPTSessionManagerDelegate {
 
+    
     lazy var clientID: String = {
            guard let id = Bundle.main.object(forInfoDictionaryKey: "SPOTIFY_CLIENT_ID") as? String else {
                fatalError("SPOTIFY_CLIENT_ID가 Info.plist에 없음")
@@ -35,7 +36,8 @@ class ViewController: UIViewController, SPTSessionManagerDelegate {
                 .userModifyPlaybackState,
                 .userReadCurrentlyPlaying,
                 .streaming,
-                .appRemoteControl
+                .appRemoteControl,
+                .userLibraryRead
             ]
             sessionManager.initiateSession(with: scopes, options: .default, campaign: nil)
 
@@ -43,16 +45,22 @@ class ViewController: UIViewController, SPTSessionManagerDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        // 저장된 토큰이 있으면 바로 메인으로
+        // 임시: 기존 토큰 삭제 (권한이 부족한 토큰이라서)
+        //UserDefaults.standard.removeObject(forKey: "spotifyAccessToken")
+        
         if let token = UserDefaults.standard.string(forKey: "spotifyAccessToken") {
-            print("🔒 기존 토큰 있음: \(token)")
-            
-            DispatchQueue.main.async {
-                let storyboard = UIStoryboard(name: "Main", bundle: nil)
-                if let mainVC = storyboard.instantiateViewController(withIdentifier: "MainViewController") as? MainViewController {
-                    mainVC.modalPresentationStyle = .fullScreen
-                    self.present(mainVC, animated: true, completion: nil)
-                }
+            goToMainScreen()
+        } else {
+            print("🔓 로그인 필요")
+        }
+    }
+    
+    func goToMainScreen() {
+        DispatchQueue.main.async {
+            let storyboard = UIStoryboard(name: "Main", bundle: nil)
+            if let mainVC = storyboard.instantiateViewController(withIdentifier: "MainViewController") as? MainViewController {
+                mainVC.modalPresentationStyle = .fullScreen
+                self.present(mainVC, animated: true, completion: nil)
             }
         }
     }
@@ -69,7 +77,7 @@ class ViewController: UIViewController, SPTSessionManagerDelegate {
             if let mainVC = storyboard.instantiateViewController(withIdentifier: "MainViewController") as? MainViewController {
                 mainVC.modalPresentationStyle = .fullScreen
                 self.present(mainVC, animated: true, completion: nil)
-            }
+            } 
         }
     }
 
