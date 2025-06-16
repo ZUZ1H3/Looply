@@ -52,7 +52,7 @@ class ViewController: UIViewController, SPTSessionManagerDelegate {
         setupUI()
 
         // 임시: 기존 토큰 삭제 (권한이 부족한 토큰이라서)
-        UserDefaults.standard.removeObject(forKey: "spotifyAccessToken")
+        ///UserDefaults.standard.removeObject(forKey: "spotifyAccessToken")
         
         if let token = UserDefaults.standard.string(forKey: "spotifyAccessToken") {
             goToMainScreen()

@@ -20,6 +20,7 @@ class AlbumDetailViewController: UIViewController, UITableViewDelegate, UITableV
         setupAlbumInfo()
         setupAlbumTouchGesture()
         fetchAlbumTracks()
+        setupBackButton()
     }
     
     private func setupAlbumTouchGesture() {
@@ -134,6 +135,36 @@ class AlbumDetailViewController: UIViewController, UITableViewDelegate, UITableV
         if let imageUrl = album.imageUrl, let url = URL(string: imageUrl) {
             loadImage(from: url, into: albumImageView)
         }
+    }
+    
+    // MARK: - 뒤로가기 버튼 설정
+    private func setupBackButton() {
+        let backButton = UIButton(type: .system)
+        backButton.setImage(UIImage(systemName: "chevron.left"), for: .normal)
+        backButton.tintColor = .black
+        backButton.backgroundColor = .clear // 배경 없애기
+        
+        // 버튼 크기 설정
+        backButton.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(backButton)
+        
+        // 제약조건 설정 (왼쪽 상단)
+        NSLayoutConstraint.activate([
+            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
+            backButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            backButton.widthAnchor.constraint(equalToConstant: 30),
+            backButton.heightAnchor.constraint(equalToConstant: 30)
+        ])
+        
+        // 버튼 액션 연결
+        backButton.addTarget(self, action: #selector(backButtonTapped), for: .touchUpInside)
+        
+        // 다른 UI 요소들보다 앞에 배치
+        view.bringSubviewToFront(backButton)
+    }
+
+    @objc private func backButtonTapped() {
+        dismiss(animated: true, completion: nil)
     }
     
     private func fetchAlbumTracks() {
@@ -255,12 +286,12 @@ class AlbumDetailViewController: UIViewController, UITableViewDelegate, UITableV
 
     private func createEnhancedGradient(from baseColors: [UIColor]) -> [UIColor] {
         guard let mainColor = baseColors.first else {
-            // 기본 색상들도 더 선명하게
+            // 기본 색상도 더 선명하게
             return [
-                UIColor(red: 0.95, green: 0.95, blue: 1.0, alpha: 1.0),
-                UIColor(red: 0.9, green: 0.92, blue: 0.98, alpha: 1.0),
-                UIColor(red: 0.85, green: 0.88, blue: 0.95, alpha: 1.0),
-                UIColor(red: 0.9, green: 0.9, blue: 0.92, alpha: 1.0)
+                UIColor(red: 0.9, green: 0.7, blue: 1.0, alpha: 1.0),    // 연보라
+                UIColor(red: 1.0, green: 0.8, blue: 0.9, alpha: 1.0),    // 연핑크
+                UIColor(red: 0.8, green: 0.9, blue: 1.0, alpha: 1.0),    // 연하늘
+                UIColor(red: 0.9, green: 1.0, blue: 0.8, alpha: 1.0)     // 연초록
             ]
         }
         
@@ -271,82 +302,70 @@ class AlbumDetailViewController: UIViewController, UITableViewDelegate, UITableV
         
         mainColor.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
         
-        // 더 선명하고 다채로운 색상 팔레트 생성
-        let color1 = UIColor(hue: hue, saturation: saturation * 0.4, brightness: min(brightness + 0.3, 1.0), alpha: 0.8) // 더 진하게
-        let color2 = UIColor(hue: fmod(hue + 0.1, 1.0), saturation: saturation * 0.5, brightness: min(brightness + 0.2, 1.0), alpha: 0.7)
-        let color3 = UIColor(hue: fmod(hue - 0.1, 1.0), saturation: saturation * 0.45, brightness: min(brightness + 0.25, 1.0), alpha: 0.6)
-        let color4 = UIColor(hue: hue, saturation: saturation * 0.3, brightness: min(brightness + 0.35, 1.0), alpha: 0.5)
+        // 훨씬 더 선명하고 채도 높은 색상들
+        let color1 = UIColor(hue: hue, saturation: min(saturation * 2.0, 1.0), brightness: min(brightness + 0.2, 1.0), alpha: 0.6) // 채도 2배
+        let color2 = UIColor(hue: fmod(hue + 0.15, 1.0), saturation: min(saturation * 1.8, 1.0), brightness: min(brightness + 0.15, 1.0), alpha: 0.5)
+        let color3 = UIColor(hue: fmod(hue - 0.15, 1.0), saturation: min(saturation * 1.6, 1.0), brightness: min(brightness + 0.25, 1.0), alpha: 0.7)
+        let color4 = UIColor(hue: fmod(hue + 0.3, 1.0), saturation: min(saturation * 1.4, 1.0), brightness: min(brightness + 0.1, 1.0), alpha: 0.4)
         
         return [color1, color2, color3, color4]
     }
 
     private func addDynamicWaveAnimation(to gradientLayer: CAGradientLayer) {
-        // 더 극적인 색상 변화 애니메이션
+        // 물감 흘러내리는 느낌의 애니메이션
         let colorAnimation = CAKeyframeAnimation(keyPath: "colors")
         guard let originalColors = gradientLayer.colors else { return }
         
-        // 매우 극적인 색상 변화
-        let veryBrightColors = originalColors.map { color in
+        // 더 드라마틱한 색상 변화 (물감이 섞이는 느낌)
+        let intenseColors = originalColors.map { color in
             let cgColor = color as! CGColor
             return UIColor(cgColor: cgColor).withAlphaComponent(1.0).cgColor // 완전 불투명
         }
         
-        let veryDimColors = originalColors.map { color in
+        let fadeColors = originalColors.map { color in
             let cgColor = color as! CGColor
-            return UIColor(cgColor: cgColor).withAlphaComponent(0.1).cgColor // 거의 투명
+            return UIColor(cgColor: cgColor).withAlphaComponent(0.2).cgColor // 거의 투명
         }
         
         let midColors = originalColors.map { color in
             let cgColor = color as! CGColor
-            return UIColor(cgColor: cgColor).withAlphaComponent(0.6).cgColor // 중간 투명도
+            return UIColor(cgColor: cgColor).withAlphaComponent(0.7).cgColor
         }
         
-        colorAnimation.values = [originalColors, veryBrightColors, midColors, veryDimColors, midColors, originalColors]
-        colorAnimation.duration = 4.0 // 더 빠르게
+        // 물감이 퍼지듯 천천히 변화
+        colorAnimation.values = [originalColors, intenseColors, midColors, fadeColors, midColors, originalColors]
+        colorAnimation.duration = 12.0 // 더 천천히
         colorAnimation.repeatCount = .infinity
-        colorAnimation.autoreverses = false
+        colorAnimation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
         
-        // 더 극적인 위치 변화
+        // 물감 흘러내리는 효과 (위치 변화)
         let locationAnimation = CAKeyframeAnimation(keyPath: "locations")
         locationAnimation.values = [
-            [0.0, 0.3, 0.7, 1.0],
-            [0.2, 0.5, 0.9, 1.2],
-            [-0.1, 0.2, 0.5, 0.8],
-            [0.1, 0.6, 1.0, 1.3],
-            [0.0, 0.3, 0.7, 1.0]
+            [0.0, 0.3, 0.6, 1.0],
+            [0.2, 0.5, 0.8, 1.2],     // 아래로 흘러내림
+            [0.1, 0.4, 0.7, 1.1],
+            [-0.1, 0.2, 0.5, 0.9],    // 위로 올라감
+            [0.0, 0.3, 0.6, 1.0]
         ]
-        locationAnimation.duration = 5.0 // 더 빠르게
+        locationAnimation.duration = 15.0
         locationAnimation.repeatCount = .infinity
-        locationAnimation.autoreverses = false
+        locationAnimation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
         
-        // 회전하는 그라데이션 효과
+        // 물감 번짐 효과 (그라데이션 방향 변화)
         let startPointAnimation = CAKeyframeAnimation(keyPath: "startPoint")
         startPointAnimation.values = [
             CGPoint(x: 0, y: 0),
+            CGPoint(x: 0.2, y: 0.3),   // 물감이 번지는 느낌
+            CGPoint(x: 0.1, y: 0.1),
             CGPoint(x: 0.3, y: 0.2),
-            CGPoint(x: 0.1, y: 0.4),
-            CGPoint(x: 0.4, y: 0.1),
             CGPoint(x: 0, y: 0)
         ]
-        startPointAnimation.duration = 6.0
+        startPointAnimation.duration = 20.0
         startPointAnimation.repeatCount = .infinity
         
-        let endPointAnimation = CAKeyframeAnimation(keyPath: "endPoint")
-        endPointAnimation.values = [
-            CGPoint(x: 1, y: 1),
-            CGPoint(x: 0.7, y: 0.8),
-            CGPoint(x: 0.9, y: 0.6),
-            CGPoint(x: 0.6, y: 0.9),
-            CGPoint(x: 1, y: 1)
-        ]
-        endPointAnimation.duration = 6.0
-        endPointAnimation.repeatCount = .infinity
-        
-        // 모든 애니메이션 적용
-        gradientLayer.add(colorAnimation, forKey: "colorWave")
-        gradientLayer.add(locationAnimation, forKey: "locationWave")
-        gradientLayer.add(startPointAnimation, forKey: "startPointWave")
-        gradientLayer.add(endPointAnimation, forKey: "endPointWave")
+        gradientLayer.add(colorAnimation, forKey: "colorFlow")
+        gradientLayer.add(locationAnimation, forKey: "paintDrip")
+        gradientLayer.add(startPointAnimation, forKey: "paintSpread")
     }
 
     private func extractDominantColors(from image: UIImage) -> [UIColor] {

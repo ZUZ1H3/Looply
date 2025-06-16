@@ -25,12 +25,21 @@ class NowPlayingViewController: UIViewController {
     var lastProgressMs: Int?
     var progressTimer: Timer?
     
+    // 파장 효과용 추가
+    var waveBackgroundView: UIView!
+    var waveLayer1: CAShapeLayer!
+    var waveLayer2: CAShapeLayer!
+    var waveLayer3: CAShapeLayer!
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         setupImages()
         setupCodeUI()
         setupConstraints()
         startRealtimeUpdates() // 실시간 업데이트 시작
+        setupWaveBackground() // 파장 배경 추가
+        setupNavigationBar()
+        setupStoryboardUIStyles()
     }
     
     override func viewWillDisappear(_ animated: Bool) {
@@ -62,11 +71,17 @@ class NowPlayingViewController: UIViewController {
         playPauseButton.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(playPauseButton)
         
-        // 진행바
+        // 진행바 스타일 변경
         progressSlider = UISlider()
         progressSlider.minimumValue = 0
         progressSlider.maximumValue = 1
-        progressSlider.value = 0.4 // 임시값
+        progressSlider.value = 0.4
+        
+        // 진행바 색상을 검정색으로 변경
+        progressSlider.minimumTrackTintColor = .black        // 진행된 부분 (파란색 → 검정색)
+        progressSlider.maximumTrackTintColor = .white    // 남은 부분 (회색 유지)
+        progressSlider.thumbTintColor = .black               // 동그란 제어 부분 (검정색)
+                
         progressSlider.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(progressSlider)
         
@@ -74,7 +89,7 @@ class NowPlayingViewController: UIViewController {
         currentTimeLabel = UILabel()
         currentTimeLabel.text = "2:16"
         currentTimeLabel.font = UIFont.systemFont(ofSize: 14)
-        currentTimeLabel.textColor = .gray
+        currentTimeLabel.textColor = .black
         currentTimeLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(currentTimeLabel)
         
@@ -241,7 +256,10 @@ class NowPlayingViewController: UIViewController {
         URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
             guard let data = data, error == nil else { return }
             DispatchQueue.main.async {
-                self?.albumCoverImageView.image = UIImage(data: data)
+                if let image = UIImage(data: data) {
+                    self?.albumCoverImageView.image = image
+                    self?.updateWaveColors(from: image) // 🆕 파장 색상 업데이트
+                }
             }
         }.resume()
     }
@@ -251,6 +269,35 @@ class NowPlayingViewController: UIViewController {
         let minutes = seconds / 60
         let remainingSeconds = seconds % 60
         return "\(minutes):\(String(format: "%02d", remainingSeconds))"
+    }
+    
+    // MARK: - 🆕 스토리보드 UI 스타일링
+    private func setupStoryboardUIStyles() {
+        // 1. 노래 제목 라벨 스타일 (크고 두껍게)
+        songTitleLabel.font = UIFont.systemFont(ofSize: 20, weight: .bold)
+        songTitleLabel.textColor = .black
+        
+        // 2. 아티스트 라벨 스타일 (작고 얇게)
+        artistLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+        artistLabel.textColor = .darkGray
+    }
+    
+    // MARK: - 🆕 네비게이션 바 타이틀 스타일링
+    private func setupNavigationBar() {
+        // 뒤로가기 버튼 색상
+        navigationController?.navigationBar.tintColor = .black
+        
+        // 네비게이션 바 투명하게
+        navigationController?.navigationBar.setBackgroundImage(UIImage(), for: .default)
+        navigationController?.navigationBar.shadowImage = UIImage()
+        navigationController?.navigationBar.isTranslucent = true
+        
+        // 타이틀 스타일 (두껍게)
+        title = "Looply 🎵"
+        navigationController?.navigationBar.titleTextAttributes = [
+            .foregroundColor: UIColor.black,
+            .font: UIFont.systemFont(ofSize: 20, weight: .bold) // 두껍게 변경
+        ]
     }
     
     // MARK: - 🆕 실제 재생 제어 버튼
@@ -346,6 +393,7 @@ class NowPlayingViewController: UIViewController {
         albumRotation.repeatCount = .infinity
         albumRotation.timingFunction = CAMediaTimingFunction(name: .linear)
         albumCoverImageView.layer.add(albumRotation, forKey: "albumRotation")
+        startWaveAnimation()
     }
 
     private func stopLPRotation() {
@@ -354,5 +402,152 @@ class NowPlayingViewController: UIViewController {
         
         // 앨범 커버 회전 정지
         albumCoverImageView.layer.removeAnimation(forKey: "albumRotation")
+        stopWaveAnimation()
+    }
+    
+    // MARK: - 🆕 파장 배경 설정
+    private func setupWaveBackground() {
+        // 파장 배경 컨테이너
+        waveBackgroundView = UIView()
+        waveBackgroundView.translatesAutoresizingMaskIntoConstraints = false
+        view.insertSubview(waveBackgroundView, at: 0) // 맨 뒤에 배치
+        
+        NSLayoutConstraint.activate([
+            waveBackgroundView.topAnchor.constraint(equalTo: view.topAnchor),
+            waveBackgroundView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            waveBackgroundView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            waveBackgroundView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+        
+        // 다층 파장 생성
+        createWaveLayers()
+    }
+    
+    private func createWaveLayers() {
+        let screenWidth = UIScreen.main.bounds.width
+        let screenHeight = UIScreen.main.bounds.height
+        
+        // 파장 1 (가장 뒤, 큰 파장)
+        waveLayer1 = CAShapeLayer()
+        waveLayer1.fillColor = UIColor.systemBlue.withAlphaComponent(0.1).cgColor
+        waveLayer1.path = createWavePath(amplitude: 40, frequency: 2, phase: 0, width: screenWidth, height: screenHeight).cgPath
+        waveBackgroundView.layer.addSublayer(waveLayer1)
+        
+        // 파장 2 (중간, 중간 파장)
+        waveLayer2 = CAShapeLayer()
+        waveLayer2.fillColor = UIColor.systemPurple.withAlphaComponent(0.08).cgColor
+        waveLayer2.path = createWavePath(amplitude: 25, frequency: 3, phase: .pi/2, width: screenWidth, height: screenHeight).cgPath
+        waveBackgroundView.layer.addSublayer(waveLayer2)
+        
+        // 파장 3 (앞, 작은 파장)
+        waveLayer3 = CAShapeLayer()
+        waveLayer3.fillColor = UIColor.systemPink.withAlphaComponent(0.06).cgColor
+        waveLayer3.path = createWavePath(amplitude: 15, frequency: 4, phase: .pi, width: screenWidth, height: screenHeight).cgPath
+        waveBackgroundView.layer.addSublayer(waveLayer3)
+    }
+    
+    private func createWavePath(amplitude: CGFloat, frequency: CGFloat, phase: CGFloat, width: CGFloat, height: CGFloat) -> UIBezierPath {
+        let path = UIBezierPath()
+        let centerY = height / 2
+        
+        // 시작점
+        path.move(to: CGPoint(x: 0, y: centerY))
+        
+        // 파장 그리기
+        for x in stride(from: 0, through: width, by: 2) {
+            let angle = (x / width) * frequency * 2 * .pi + phase
+            let y = centerY + amplitude * sin(angle)
+            path.addLine(to: CGPoint(x: x, y: y))
+        }
+        
+        // 화면 아래쪽까지 채우기
+        path.addLine(to: CGPoint(x: width, y: height))
+        path.addLine(to: CGPoint(x: 0, y: height))
+        path.close()
+        
+        return path
+    }
+    
+    // MARK: - 🆕 재생 상태에 따른 파장 애니메이션
+    private func startWaveAnimation() {
+        // 강한 파장 (재생 중)
+        animateWave(layer: waveLayer1, duration: 3.0, amplitude: 50)
+        animateWave(layer: waveLayer2, duration: 2.5, amplitude: 35)
+        animateWave(layer: waveLayer3, duration: 2.0, amplitude: 20)
+    }
+    
+    private func stopWaveAnimation() {
+        // 잔잔한 파장 (일시정지)
+        animateWave(layer: waveLayer1, duration: 6.0, amplitude: 15)
+        animateWave(layer: waveLayer2, duration: 5.0, amplitude: 10)
+        animateWave(layer: waveLayer3, duration: 4.0, amplitude: 5)
+    }
+    
+    // 🌊 훨씬 더 역동적인 파장 애니메이션
+    private func animateWave(layer: CAShapeLayer, duration: TimeInterval, amplitude: CGFloat) {
+        let animation = CAKeyframeAnimation(keyPath: "path")
+        let screenWidth = UIScreen.main.bounds.width
+        let screenHeight = UIScreen.main.bounds.height
+        
+        var paths: [CGPath] = []
+        
+        // 더 극적인 파장 변화
+        for i in 0...15 { // 10 → 15개로 증가 (더 부드러운 변화)
+            let progress = CGFloat(i) / 15.0
+            let phase = progress * .pi * 4 // 더 많은 주기
+            
+            // 진폭이 더 극적으로 변화
+            let amplitudeMultiplier = 0.3 + 1.4 * abs(sin(phase * 2)) // 0.3~1.7 범위
+            let currentAmplitude = amplitude * amplitudeMultiplier
+            
+            // 주파수도 동적으로 변화
+            let dynamicFrequency = 1.5 + 1.0 * sin(phase)
+            
+            let path = createWavePath(
+                amplitude: currentAmplitude,
+                frequency: dynamicFrequency,
+                phase: phase,
+                width: screenWidth,
+                height: screenHeight
+            )
+            paths.append(path.cgPath)
+        }
+        
+        animation.values = paths
+        animation.duration = duration
+        animation.repeatCount = .infinity
+        animation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        
+        layer.add(animation, forKey: "waveAnimation")
+    }
+    
+    // MARK: - 🆕 앨범 색상에 맞춰 파장 색상 변경
+    private func updateWaveColors(from image: UIImage) {
+        guard let dominantColor = image.averageColor else {
+            // 기본값도 더 강렬하게
+            setVibrantDefaultWaves()
+            return
+        }
+        
+        var hue: CGFloat = 0
+        var saturation: CGFloat = 0
+        var brightness: CGFloat = 0
+        var alpha: CGFloat = 0
+        dominantColor.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
+        
+        // 🔥 훨씬 더 강렬한 색상
+        let waveColor1 = UIColor(hue: hue, saturation: min(saturation * 2.5, 1.0), brightness: min(brightness + 0.3, 1.0), alpha: 0.4) // 채도 2.5배, 투명도 40%
+        let waveColor2 = UIColor(hue: fmod(hue + 0.2, 1.0), saturation: min(saturation * 2.0, 1.0), brightness: min(brightness + 0.2, 1.0), alpha: 0.35)
+        let waveColor3 = UIColor(hue: fmod(hue - 0.2, 1.0), saturation: min(saturation * 1.8, 1.0), brightness: min(brightness + 0.25, 1.0), alpha: 0.3)
+        
+        waveLayer1.fillColor = waveColor1.cgColor
+        waveLayer2.fillColor = waveColor2.cgColor
+        waveLayer3.fillColor = waveColor3.cgColor
+    }
+    private func setVibrantDefaultWaves() {
+        // 기본값도 강렬하게
+        waveLayer1.fillColor = UIColor(red: 1.0, green: 0.3, blue: 0.6, alpha: 0.4).cgColor  // 비브런트 핑크
+        waveLayer2.fillColor = UIColor(red: 0.3, green: 0.6, blue: 1.0, alpha: 0.35).cgColor // 비브런트 블루
+        waveLayer3.fillColor = UIColor(red: 0.6, green: 0.3, blue: 1.0, alpha: 0.3).cgColor  // 비브런트 퍼플
     }
 }

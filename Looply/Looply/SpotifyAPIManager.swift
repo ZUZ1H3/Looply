@@ -336,4 +336,48 @@ class SpotifyAPIManager {
             }
         }.resume()
     }
+    
+    // MARK: - User Playlists API
+    func getUserPlaylists(completion: @escaping (Result<[Playlist], APIError>) -> Void) {
+        guard let token = UserDefaults.standard.string(forKey: "spotifyAccessToken") else {
+            completion(.failure(.noToken))
+            return
+        }
+        
+        guard let url = URL(string: Constants.baseAPIURL + "/me/playlists?limit=50") else {
+            completion(.failure(.invalidURL))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpMethod = "GET"
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode == 401 {
+                    UserDefaults.standard.removeObject(forKey: "spotifyAccessToken")
+                    completion(.failure(.tokenExpired))
+                    return
+                }
+            }
+            
+            if let error = error {
+                completion(.failure(.apiError(0, error.localizedDescription)))
+                return
+            }
+            
+            guard let data = data else {
+                completion(.failure(.noData))
+                return
+            }
+            
+            do {
+                let result = try JSONDecoder().decode(PlaylistsResponse.self, from: data)
+                completion(.success(result.items))
+            } catch {
+                completion(.failure(.apiError(-1, error.localizedDescription)))
+            }
+        }.resume()
+    }
 }
