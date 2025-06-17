@@ -441,4 +441,57 @@ class SpotifyAPIManager {
             }
         }.resume()
     }
+    
+    // MARK: - Search API (수정된 버전)
+    func searchTracks(query: String, completion: @escaping (Result<[AudioTrack], APIError>) -> Void) {
+        guard let token = UserDefaults.standard.string(forKey: "spotifyAccessToken") else {
+            completion(.failure(.noToken))
+            return
+        }
+        
+        guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = URL(string: Constants.baseAPIURL + "/search?q=\(encodedQuery)&type=track&limit=20") else {
+            completion(.failure(.invalidURL))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpMethod = "GET"
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode == 401 {
+                    UserDefaults.standard.removeObject(forKey: "spotifyAccessToken")
+                    completion(.failure(.tokenExpired))
+                    return
+                }
+            }
+            
+            if let error = error {
+                completion(.failure(.apiError(0, error.localizedDescription)))
+                return
+            }
+            
+            guard let data = data else {
+                completion(.failure(.noData))
+                return
+            }
+            
+            // 🔥 do-catch로 감싸서 에러 처리
+            do {
+                let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+                let tracksData = json?["tracks"] as? [String: Any]
+                let itemsData = tracksData?["items"] as? [[String: Any]] ?? []
+                
+                let tracksJsonData = try JSONSerialization.data(withJSONObject: itemsData)
+                let tracks = try JSONDecoder().decode([AudioTrack].self, from: tracksJsonData)
+                
+                completion(.success(tracks))
+            } catch {
+                print("🔍 검색 JSON 파싱 에러: \(error)")
+                completion(.failure(.apiError(-1, error.localizedDescription)))
+            }
+        }.resume()
+    }
 }
