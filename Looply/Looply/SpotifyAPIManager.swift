@@ -380,4 +380,65 @@ class SpotifyAPIManager {
             }
         }.resume()
     }
+    
+    // SpotifyAPIManager.swift에 추가할 메서드
+
+    // MARK: - Playlist Tracks API
+    func getPlaylistTracks(playlistId: String, completion: @escaping (Result<[AudioTrack], APIError>) -> Void) {
+        guard let token = UserDefaults.standard.string(forKey: "spotifyAccessToken") else {
+            completion(.failure(.noToken))
+            return
+        }
+        
+        guard let url = URL(string: Constants.baseAPIURL + "/playlists/\(playlistId)/tracks?limit=50") else {
+            completion(.failure(.invalidURL))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpMethod = "GET"
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let httpResponse = response as? HTTPURLResponse {
+                print("🎵 플레이리스트 트랙 HTTP 상태 코드: \(httpResponse.statusCode)")
+                
+                if httpResponse.statusCode == 401 {
+                    UserDefaults.standard.removeObject(forKey: "spotifyAccessToken")
+                    completion(.failure(.tokenExpired))
+                    return
+                }
+            }
+            
+            if let error = error {
+                completion(.failure(.apiError(0, error.localizedDescription)))
+                return
+            }
+            
+            guard let data = data else {
+                completion(.failure(.noData))
+                return
+            }
+            
+            do {
+                // 플레이리스트 응답 구조: { "items": [{"track": AudioTrack}, ...] }
+                let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+                let items = json?["items"] as? [[String: Any]] ?? []
+                
+                var tracks: [AudioTrack] = []
+                for item in items {
+                    if let trackData = item["track"] as? [String: Any] {
+                        let trackJsonData = try JSONSerialization.data(withJSONObject: trackData)
+                        let track = try JSONDecoder().decode(AudioTrack.self, from: trackJsonData)
+                        tracks.append(track)
+                    }
+                }
+                
+                completion(.success(tracks))
+            } catch {
+                print("🎵 플레이리스트 트랙 JSON 파싱 에러: \(error)")
+                completion(.failure(.apiError(-1, error.localizedDescription)))
+            }
+        }.resume()
+    }
 }

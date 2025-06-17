@@ -180,7 +180,8 @@ class MainViewController: UIViewController, UICollectionViewDelegate, UICollecti
     // MARK: - CollectionView Delegate
     // MARK: - CollectionView Delegate
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        
+        print("🔍 어떤 컬렉션뷰? \(collectionView == albumsCollectionView ? "앨범" : "플레이리스트")")
+
         // 🎵 앨범 CollectionView 선택
         if collectionView == albumsCollectionView {
             print("🎵 앨범 클릭됨: \(indexPath.item)")
@@ -209,28 +210,34 @@ class MainViewController: UIViewController, UICollectionViewDelegate, UICollecti
             }
         }
         
-        // 📁 플레이리스트 CollectionView 선택
         else if collectionView == playlistsCollectionView {
-            print("📁 플레이리스트 클릭됨: \(indexPath.item)")
-            
             let selectedPlaylist = userPlaylists[indexPath.item]
             print("🎵 선택된 플레이리스트: \(selectedPlaylist.name)")
             
-            // TODO: 플레이리스트 상세 화면으로 이동
-            // 지금은 콘솔에 로그만 출력
-            print("📁 플레이리스트 정보:")
-            print("   - 이름: \(selectedPlaylist.name)")
-            print("   - 곡 수: \(selectedPlaylist.trackCount)")
-            print("   - 소유자: \(selectedPlaylist.ownerName)")
-            
-            // 나중에 PlaylistDetailViewController 만들어서 연결 예정
-            /*
             let storyboard = UIStoryboard(name: "Main", bundle: nil)
-            if let playlistDetailVC = storyboard.instantiateViewController(withIdentifier: "PlaylistDetailViewController") as? PlaylistDetailViewController {
-                playlistDetailVC.playlist = selectedPlaylist
-                navigationController?.pushViewController(playlistDetailVC, animated: true)
+            let playlistDetailVC = storyboard.instantiateViewController(withIdentifier: "PlaylistDetailViewController")
+            print("✅ ViewController 생성 성공: \(type(of: playlistDetailVC))")
+            
+            if let typedVC = playlistDetailVC as? PlaylistDetailViewController {
+                print("✅ 타입 캐스팅 성공")
+                typedVC.playlist = selectedPlaylist
+                
+                // 🔍 NavigationController 상태 확인
+                print("🔍 navigationController 존재: \(navigationController != nil)")
+                print("🔍 현재 viewController들: \(navigationController?.viewControllers.count ?? 0)개")
+                
+                if let navController = navigationController {
+                    print("✅ NavigationController 존재함 - push 시도")
+                    navController.pushViewController(typedVC, animated: true)
+                    print("✅ pushViewController 호출 완료")
+                } else {
+                    print("❌ NavigationController가 nil - present로 대체")
+                    typedVC.modalPresentationStyle = .fullScreen
+                    present(typedVC, animated: true) {
+                        print("✅ present 완료")
+                    }
+                }
             }
-            */
         }
     }
     
