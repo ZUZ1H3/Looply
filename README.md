@@ -1,4 +1,4 @@
-## 🎵Looply - Spotify를 활용한 뮤직 플레이어
+## 🎵Looply - Spotify API를 활용한 뮤직 플레이어
 2025년 4학년 1학기 ios프로그래밍 기말 프로젝트입니다.
 <br><br>
 ![Image](https://github.com/user-attachments/assets/f72a3c7b-5fe5-4722-a74a-2b6f3b519901)
