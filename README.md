@@ -9,3 +9,6 @@
 ![Image](https://github.com/user-attachments/assets/0f2d8fd5-16fa-4cfd-ba50-0950b965efc4)
 ![Image](https://github.com/user-attachments/assets/f4f432e1-d318-462a-97d2-60540a528b97)
 ![Image](https://github.com/user-attachments/assets/a6550c82-5f4d-42d9-902d-e7db52c50822)
+
+## 발표 영상 (Youtube 링크)
+[![시연 영상 보기](http://img.youtube.com/vi/Q4eF-zzrLp8/0.jpg)](https://www.youtube.com/watch?v=Q4eF-zzrLp8)
